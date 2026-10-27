@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_file_click_handler.h"
-#include "data/data_file_origin.h"
 #include "data/data_session.h"
 #include "history/view/media/history_view_gif.h"
 #include "history/history.h"
@@ -38,63 +37,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QBuffer>
 #include <QtCore/QMimeType>
 #include <QtCore/QMimeDatabase>
-#include <QtCore/QProcess>
 
 namespace Data {
 namespace {
-
-constexpr auto kExternalVideoPlayerPref = "external_video_player"_cs;
-
-base::flat_map<not_null<DocumentData*>, rpl::lifetime> ExternalPlayerPending;
-
-bool LaunchExternalPlayer(const QString &player, const QString &path) {
-	return QProcess::startDetached(
-		player,
-		{ QDir::toNativeSeparators(path) });
-}
-
-void FinishExternalPlayerWait(not_null<DocumentData*> document) {
-	if (auto lifetime = ExternalPlayerPending.take(document)) {
-		lifetime->destroy();
-	}
-}
-
-void LaunchExternalPlayerWhenReady(not_null<DocumentData*> document) {
-	const auto player = ExternalVideoPlayer();
-	const auto path = document->filepath(true);
-	if (!player.isEmpty() && !path.isEmpty()) {
-		LaunchExternalPlayer(player, path);
-	}
-	FinishExternalPlayerWait(document);
-}
-
-void OpenInExternalPlayerWhenLoaded(
-		not_null<DocumentData*> document,
-		FullMsgId itemId) {
-	if (!ExternalPlayerPending.contains(document)) {
-		ExternalPlayerPending[document] = document->owner(
-		).documentLoadProgress(
-		) | rpl::filter([=](not_null<DocumentData*> loaded) {
-			return (loaded == document) && !document->loading();
-		}) | rpl::on_next_done([=] {
-			LaunchExternalPlayerWhenReady(document);
-		}, [=] {
-			FinishExternalPlayerWait(document);
-		});
-	}
-	if (document->loading()) {
-		return;
-	}
-	DocumentSaveClickHandler::SaveAndTrack(
-		itemId,
-		document,
-		DocumentSaveClickHandler::Mode::ToFile,
-		[=] {
-			if (!document->loading()) {
-				LaunchExternalPlayerWhenReady(document);
-			}
-		});
-}
 
 void ConfirmDontWarnBox(
 		not_null<Ui::GenericBox*> box,
@@ -199,22 +144,6 @@ void LaunchWithWarning(
 }
 
 } // namespace
-
-QString ExternalVideoPlayer() {
-	return QString::fromUtf8(Core::App().settings().readPref<QByteArray>(
-		kExternalVideoPlayerPref));
-}
-
-void SetExternalVideoPlayer(const QString &path) {
-	auto &settings = Core::App().settings();
-	if (path.isEmpty()) {
-		settings.clearPref(kExternalVideoPlayerPref);
-	} else {
-		settings.writePref<QByteArray>(
-			kExternalVideoPlayerPref,
-			path.toUtf8());
-	}
-}
 
 ImageOpenCheck CheckImageOpenInApp(
 		not_null<DocumentData*> document,
@@ -341,15 +270,6 @@ void ResolveDocument(
 				&& item->media()
 				&& item->media()->ttlSeconds()) {
 				ChatHelpers::ShowTTLMediaLayerWidget(controller, item);
-			}
-		} else if (const auto player = document->isVideoFile()
-				? ExternalVideoPlayer()
-				: QString(); !player.isEmpty()) {
-			const auto path = document->filepath(true);
-			if (path.isEmpty()) {
-				OpenInExternalPlayerWhenLoaded(document, msgId);
-			} else if (!LaunchExternalPlayer(player, path)) {
-				showDocument();
 			}
 		} else {
 			showDocument();

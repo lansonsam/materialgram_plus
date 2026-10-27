@@ -26,7 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_channel.h"
 #include "core/update_checker.h"
 #include "data/data_auto_download.h"
-#include "data/data_document_resolver.h"
 #include "data/data_session.h"
 #include "export/export_manager.h"
 #include "info/downloads/info_downloads_widget.h"
@@ -1324,83 +1323,6 @@ void BuildScreenReaderSection(SectionBuilder &builder) {
 	builder.addSkip();
 }
 
-void BuildExternalVideoPlayerButton(SectionBuilder &builder) {
-	const auto controller = builder.controller();
-	const auto container = builder.container();
-	const auto player = container
-		? container->lifetime().make_state<rpl::variable<QString>>(
-			Data::ExternalVideoPlayer())
-		: nullptr;
-	const auto set = [=](const QString &path) {
-		Data::SetExternalVideoPlayer(path);
-		*player = path;
-	};
-	const auto showBox = [=] {
-		controller->show(Box([=](not_null<Ui::GenericBox*> box) {
-			const auto current = player->current();
-			box->setTitle(tr::lng_materialgram_external_player());
-			box->addRow(object_ptr<Ui::FlatLabel>(
-				box,
-				tr::lng_materialgram_external_player_about(),
-				st::boxLabel));
-			if (!current.isEmpty()) {
-				box->addRow(object_ptr<Ui::FlatLabel>(
-					box,
-					QDir::toNativeSeparators(current),
-					st::boxDividerLabel));
-			}
-			const auto chosen = crl::guard(box, [=](
-					const FileDialog::OpenResult &result) {
-				if (!result.paths.isEmpty()) {
-					set(result.paths.front());
-					box->closeBox();
-				}
-			});
-			box->addButton(tr::lng_materialgram_external_player_choose(), [=] {
-				FileDialog::GetOpenPath(
-					box.get(),
-					tr::lng_materialgram_external_player(tr::now),
-					(Platform::IsWindows()
-						? u"Programs (*.exe)"_q
-						: FileDialog::AllFilesFilter()),
-					chosen);
-			});
-			box->addButton(tr::lng_cancel(), [=] {
-				box->closeBox();
-			});
-			if (!current.isEmpty()) {
-				box->addLeftButton(
-					tr::lng_materialgram_external_player_reset(),
-					[=] {
-						set(QString());
-						box->closeBox();
-					});
-			}
-		}));
-	};
-	builder.addButton({
-		.id = u"advanced/materialgram_external_player"_q,
-		.title = tr::lng_materialgram_external_player(),
-		.st = &st::settingsButtonNoIcon,
-		.label = (player
-			? player->value()
-			: rpl::single(Data::ExternalVideoPlayer()) | rpl::type_erased
-		) | rpl::map([](const QString &path) {
-			return path.isEmpty()
-				? tr::lng_materialgram_external_player_none(tr::now)
-				: QFileInfo(path).completeBaseName();
-		}),
-		.onClick = showBox,
-		.keywords = {
-			u"materialgram"_q,
-			u"video"_q,
-			u"player"_q,
-			u"potplayer"_q,
-			u"external"_q,
-		},
-	});
-}
-
 void BuildMaterialgramSection(SectionBuilder &builder) {
 	const auto settings = &Core::App().settings();
 
@@ -1462,8 +1384,6 @@ void BuildMaterialgramSection(SectionBuilder &builder) {
 			Core::App().saveSettingsDelayed();
 		}, gamee->lifetime());
 	}
-
-	BuildExternalVideoPlayerButton(builder);
 
 	builder.addSkip();
 }

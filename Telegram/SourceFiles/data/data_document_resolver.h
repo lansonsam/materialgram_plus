@@ -60,9 +60,6 @@ base::binary_guard ReadBackgroundImageAsync(
 	FnMut<QImage(QImage)> postprocess,
 	FnMut<void(QImage&&)> done);
 
-[[nodiscard]] QString ExternalVideoPlayer();
-void SetExternalVideoPlayer(const QString &path);
-
 void ResolveDocument(
 	Window::SessionController *controller,
 	not_null<DocumentData*> document,

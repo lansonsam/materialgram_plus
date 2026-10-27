@@ -1838,11 +1838,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_materialgram_info_registration" = "Registration date";
 "lng_materialgram_info_dc" = "DC";
-"lng_materialgram_external_player" = "外部视频播放器";
-"lng_materialgram_external_player_none" = "内置";
-"lng_materialgram_external_player_about" = "视频将在所选播放器中打开，例如 PotPlayer。尚未下载的视频会先下载，完成后自动打开。";
-"lng_materialgram_external_player_choose" = "选择播放器";
-"lng_materialgram_external_player_reset" = "使用内置播放器";
 "lng_info_personal_channel_label" = "Channel";
 "lng_info_mobile_label" = "Mobile";
 "lng_info_mobile_context_menu_fragment_about" = "This number is not tied to a SIM card and was acquired on {link}.";
